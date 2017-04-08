@@ -1,0 +1,17 @@
+/*
+ * helpers.h
+ * by Samuel Weaver (sweave05) and Ross Kamen (rkamen02)
+ * October 21, 2016
+ * HW 4
+ *
+ * Function declarations for helper functions
+ */
+
+#ifndef HELPERS
+#define HELPERS
+
+unsigned moveInBoundsUint(   unsigned value, unsigned min, unsigned max);
+int      moveInBoundsInt(   int value, int min, int max);
+float    moveInBoundsFloat( float value, float min, float max);
+
+#endif

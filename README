@@ -1,0 +1,94 @@
+
+README
+by Samuel Weaver (sweave05) and Ross Kamen (rkamen02)
+October 21, 2016
+HW 4
+
+README File
+
+
+ASSISTANCE
+
+We recieved debugging help from Professor Mendelsohn and the TAs. The internet
+provided us help in understanding small features and nuances of C. The program
+endian.c from lecture helped us understand the bit representations of data.
+We did not discuss, disclose, or debate the structure of our program or
+their's with other students. 
+
+
+PROPER IMPLEMENTATION
+
+Everything has been correctly implemented to the best of our knowledge. We have
+two issues that we have found to be linked and highly suspect that it is the
+result of the Arith40_index_of_chroma and Arith40_chroma_of_index functions
+losing data. The issues are found in two circumstances. In images that
+are just gradients from a color to black or white, the colors are blocked after
+decompression. There are groups of pixels where each pixel is the same color.
+The other issue is seen in some regular images where bunches of pixels
+get a blue, green, or red tint after decompression. We know the issues are
+linked and probably are the result of Arith40_chroma_of_index and
+Arith40_index_of_chroma because of testing we did. The revealing test was
+making pb and pr in our Quant structures into floats and not using
+the provided functions. We just moved pb and pr from TransComp into Quant and 
+back. This got rid of our tints and pixel blocking. We also printed the values
+in our TransComps before and after decompression and compression and noticed
+that the edges of the blocks of pixels in our pictures corresponded to jumps
+in pb and pr which where jumps from possible outputted chromas from
+Arith40_chroma_of_index to other possible values from the function. We were
+not able to fix this issue.
+
+
+ARCHITECTURE
+
+The general idea of the structure of our program is that each stage of 
+decompression and compression is represented by a module that only interacts
+with the module above it. More or less, each has a public structure so that
+the module below it knows how it stores data. The structures are held
+in UArray2_Ts to represent the pixel map.
+
+40image
+
+Deals with program call, figures out whether we are compressing or 
+decompressing, where we are reading data in from, and passes this data 
+to compress40.
+
+compress40
+
+Given a file input to be read from for decompression or compression, uses
+constructed and provided modules to read the data into a more useable format,
+executes each stage of compression or decompression, and writes the final data
+to stdout. Pnm_ppm is the data structure for the first stage of compression
+and last data structure for decompression.
+
+floatrgb
+
+Converts Pnm_rgbs to Float_rgb structures and back, holds them in UArray2_Ts.
+Represents the stage of converting the rgb values to floating point rgbs.
+
+component
+
+Converts Float_rgb structures into Component structures and back, holds
+them in UArray2_Ts. Represents the stage of converting floating point rgbs
+into Component Video Format. 
+
+transcomp
+
+Converts Component structures into TransComp structures and back, holds
+them in UArray2_Ts. Represents the Cosine Transformed Component 
+Video Format stage.
+
+codeword
+
+Originally the quattran and codeword module, codeword converts TransComp
+structures into Codewords, represented in UArray2_Ts. May write Codewords to 
+and read Codewords from disk. Represents the quantization of cosine
+transformed component video formated pixels stage and bitpacking stage of
+the process. This module has no public structures because nothing
+needs to know how it stores data. It has two structures privately, one to
+represent the quantization stage of its task and one to represent the codewords
+themselves but no one needs to know that. 
+
+
+TIME SPENT
+
+We spent 10.25 hours planning the project and 35.5 hours implementing it.

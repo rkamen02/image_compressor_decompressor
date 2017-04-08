@@ -1,0 +1,28 @@
+/*
+ * floatrgb.h
+ * by Samuel Weaver (sweave05) and Ross Kamen (rkamen02)
+ * October 21, 2016
+ * HW 4
+ *
+ * Function declarations for transcomp, the transformed component module
+ */
+
+#ifndef QUANTCODEWORD
+#define QUANTCODEWORD
+
+#include "uarray2.h"
+#include <stdint.h>
+#include <stdio.h>
+
+
+typedef uint32_t Codeword;
+
+UArray2_T TransCompsToCodewords(  UArray2_T TransComps);
+UArray2_T CodewordsToTransComps(  UArray2_T Codewords);
+
+void      writeCodewords(     FILE *out, UArray2_T Codewords);
+UArray2_T readCodewords(      FILE *in);
+
+
+
+#endif

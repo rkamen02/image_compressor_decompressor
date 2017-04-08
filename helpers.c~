@@ -1,0 +1,48 @@
+/*
+ * helpers.c
+ * by Samuel Weaver (sweave05) and Ross Kamen (rkamen02)
+ * October 21, 2016
+ * HW 4
+ *
+ * Implementation for helpers
+ */
+
+unsigned moveInBoundsUint( unsigned value, unsigned min, unsigned max)
+{
+	if (value < min) {
+		return min;
+	}
+
+	if (value > max) {
+		return max;
+	}
+
+	return value;
+}
+
+
+int moveInBoundsInt( int value, int min, int max)
+{
+	if (value < min) {
+		return min;
+	}
+
+	if (value > max) {
+		return max;
+	}
+
+	return value;
+}
+
+float moveInBoundsFloat( float value, float min, float max)
+{
+	if (value < min) {
+		return min;
+	}
+
+	if (value > max) {
+		return max;
+	}
+
+	return value;
+}

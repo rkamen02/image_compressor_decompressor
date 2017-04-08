@@ -1,0 +1,71 @@
+/*
+ * ppmdiff.c
+ * by Samuel Weaver (sweave05) and Ross Kamen (rkamen02)
+ * October 21, 2016
+ * Lab 5
+ *
+ * Program to compare two images, prints a ratio to stdout.
+ */
+
+#include "meansquarediff.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
+#include <a2plain.h>
+
+/*
+ * Takes two command line arguments that are image file names. "-" may be
+ * substituted for up to one of them indicating that that image should be 
+ * read from stdin.
+ *
+ * Prints their difference calculated using mean square difference to stdout
+ * to four decimal places. 
+ *
+ * Prints 1.0000 if the image widths or heights differ by more than 1 each.
+ *
+ * CRE if the file(s) can not be opened. CRE if not given 2 arguments.
+ * CRE if uarray2_methods_plain can not be accessed. 
+ */
+int main( int argc, char *argv[]) 
+{
+	
+	assert( argc == 3);
+	assert( !( (strcmp( argv[1], "-") == 0) && 
+		   (strcmp( argv[2], "-") == 0)));
+
+	FILE *image1_file = NULL;
+	FILE *image2_file = NULL;
+	Pnm_ppm image1, image2;
+
+	A2Methods_T methods = uarray2_methods_plain;
+
+	assert(methods);
+
+	if ( strcmp( argv[1], "-") == 0) {
+		image1_file = stdin;
+	} else {
+		image1_file = fopen( argv[1], "r");
+		assert( image1_file);
+	}
+
+	if ( strcmp( argv[2], "-") == 0) {
+		image2_file = stdin;
+	} else {
+		image2_file = fopen( argv[2], "r");
+		assert( image1_file);
+	}
+
+	image1 = Pnm_ppmread( image1_file, methods);
+	image2 = Pnm_ppmread( image2_file, methods);
+	
+	fclose( image1_file);
+	fclose( image2_file);
+	
+	fprintf( stdout, "%.4f\n", 100 * meanSquareDiff( image1, image2));
+	
+	Pnm_ppmfree( &image1);
+	Pnm_ppmfree( &image2);
+
+	return EXIT_SUCCESS;
+}

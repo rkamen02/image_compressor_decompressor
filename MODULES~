@@ -1,0 +1,180 @@
+
+modules.txt
+by Samuel Weaver (sweave05) and Ross Kamen (rkamen02)
+October 21, 2016
+HW 4
+
+A file laying out the modules we will create and their public and private 
+functions.
+
+compress40
+	PUBLIC
+	
+	void compress40(   FILE *input);
+	void decompress40( FILE* input);
+
+	PRIVATE
+	
+	void trim( Pnm_ppm *image);
+
+floatrgb
+	PUBLIC
+
+	struct Float_rgb {
+		float r, g, b;
+	};
+	UArray2_T Pnm_ppmToFloat_rgbs( Pnm_ppm image);
+	Pnm_ppm   Float_rgbsToPnm_ppm( UArray2_T Float_rgbs);
+
+	PRIVATE
+
+	const int denominator;
+
+	A2Methods_applyfun PnmToFloat();
+	UArray2_applyfun   FloatToPnm();
+	Float_rgb convertPnm_rgb( Pnm_rgb pnm_rgb, int denom);
+	Pnm_rgb   convertFloat_rgb( Float_rgb float_rgb, int denom);
+
+component
+	PUBLIC
+
+	struct Component {
+		float y, pb, pr;
+	};
+	UArray2_T Float_rgbsToComponents( UArray2_T Float_rgbs);
+	UArray2_T ComponentsToFloat_rgbs( UArray2_T Components);
+
+	PRIVATE
+	
+	UArray2_applyfun FloatToComponent();
+	UArray2_applyfun ComponentToFloat();
+	Float_rgb convertComponent( Float_rgb component);
+	Component convertFloat_rgb( Float_rgb float_rgb);
+	
+
+transcomp
+	PUBLIC
+
+	struct TransComp {
+		float pb, pr, a, b, c, d;
+	};
+	UArray2_T ComponentsToTransComps( UArray2_T Components);
+	UArray2_T TransCompsToComponents( UArray2_T TransComps);
+
+	PRIVATE
+	
+	UArray2_applyfun CompToTrans();
+	UArray2_applyfun TransToComp();
+	TransComp        convertComponent( int x, 
+					   int y, 
+					   UArray2_T Components);
+	void             convertTransComp( int x, 
+					   int y, 
+					   UArray2_T TransComps, 
+					   UArray2_T *Components);
+
+quanttran
+	PUBLIC
+
+	struct QuantTran {
+		unsigned pb, pr, a; 
+		int b, c, d;
+	};
+	UArray2_T TransCompsToQuantTrans( UArray2_T TransComps);
+	UArray2_T QuantTransToTransComps( UArray2_T QuantTrans);
+
+	PRIVATE
+	
+	UArray2_applyfun TransToQuant();
+	UArray2_applyfun QuantToTrans();
+	TransComp        convertQuantTran( QuantTran quanttran);
+	QuantTran        convertTransComp( TransComp transcomp);
+
+
+codeword
+	PUBLIC
+	
+	extern const int width_a  = 9;
+	extern const int width_b  = 5;
+	extern const int width_c  = 5;
+	extern const int width_d  = 5;
+	extern const int width_pb = 4;
+	extern const int width_pr = 4;
+	
+	UArray2_T QuantTransToCodewords( UArray2_T QuantTrans);
+	UArray2_T CodewordsToQuantTrans( UArray2_T Codewords);
+	void      writeCodewords( FILE *out, UArray2_T Codewords);
+	UArray2_T readCodewords(  FILE *in);
+
+	PRIVATE
+
+	const int lsb_a  = 23;
+	const int lsb_b  = 18;
+	const int lsb_c  = 13;
+	const int lsb_d  = 8;
+	const int lsb_pb = 4;
+	const int lsb_pr = 0;
+
+	typdef uint32_t Codeword;
+	
+	UArray2_applyfun CodewordToQuant();
+	UArray2_applyfun QuantToCodeword();
+	UArray2_applyfun WriteCodes();
+	UArray2_applyfun ReadCodes();
+	void		 assertCodewordFormat();
+	void		 writeSingleCode( FILE *out, Codeword code);
+	Codeword	 readSingleCode( FILE *in);
+	Codeword         convertQuantTrans( QuantTrans quanttran);
+	QuantTran        convertCodeword( unsigned codeword);
+
+quantcodeword
+	PUBLIC
+	
+	UArray2_T TransCompsToQuants( UArray2_T TransComps);
+	UArray2_T QuantsToTransComps( UArray2_T Quants);
+	UArray2_T QuantsToCodewords(  UArray2_T Quants);
+	UArray2_T CodewordsToQuants(  UArray2_T Codewords);
+	void      writeCodewords(     FILE *out, UArray2_T Codewords);
+	UArray2_T readCodewrods(      FILE *in);
+
+	PRIVATE
+	
+	const int width_a  = 9;
+	const int width_b  = 5;
+	const int width_c  = 5;
+	const int width_d  = 5;
+	const int width_pb = 4;
+	const int width_pr = 4;	
+	
+	const int lsb_a  = 23;
+	const int lsb_b  = 18;
+	const int lsb_c  = 13;
+	const int lsb_d  = 8;
+	const int lsb_pb = 4;
+	const int lsb_pr = 0;
+
+	struct Quant {
+		unsigned pb, pr, a;
+		int b, c, d;
+	};
+	typedef uint32_t Codeword;
+	
+	UArray2_applyfun TransToQuantMap();
+	UArray2_applyfun QuantToTranMap();
+	UArray2_applyfun CodewordToQuantMap();
+	UArray2_applyfun QuantToCodewordMap();
+	UArray2_applyfun WriteCodewordMap();
+	UArray2_applyfun ReadCodewordMap();
+
+	TransComp QuantToTranIndi( Quant quant);
+	
+	Quant TransToQuantIndi( TransComp transcomp);
+	Quant CodewordToQuantIndi( Codeword codeword);
+	
+	Codeword QuantToCodewordIndi( Quant quant);
+	Codeword ReadCodewordIndi( FILE *in);
+
+	void WriteCodewordIndi( Codeword codeword);
+	void assertCodewordFormat();
+
+

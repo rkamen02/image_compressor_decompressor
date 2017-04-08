@@ -1,0 +1,557 @@
+
+DESIGN by Samuel Weaver (sweave05) and Ross Kamen (rkamen02)
+October 13, 2016
+HW $
+
+The design documentation for HW4.
+
+
+
+                        PROGRAM GOAL
+
+
+
+The goal of our program is to compress read ppms to compressed structures and 
+write those structures to disk or read compressed structures from disk and 
+decompress them to ppms. 
+
+
+
+                        PROGRAM ARCHITECTURE
+
+
+
+We will be using Lossy Compression that has five stages. The different 
+stages are:
+
+- RGB values as scaled integers
+- RGB values as floats
+- Component Representation 
+- Transformed Component Representation as floats
+- Transformed Component Representation as scaled integers
+- 32-bit codewords
+
+Each of these stages will be represented as a different module in our program.
+Each module will be decompress to and compress from the form of the module
+above it, accordingly each has access to the module above it. The modules are:
+
+- compress40
+        - Read in files and construct Pnm_ppms from them if compressing;
+                construct UArray2_T of Codewords if decompressing. 
+        - While compressing, represents the RGB values as scaled integers
+                stage then facilitates the rest of compression. Reads the 
+                ppm from input.
+        - While decrompressing, executes file input then intiates and
+                facilitates the rest of decompression, represents the RGB 
+                values as scaled integers stage at end. Writes the ppm
+                to output.
+
+- bitpack
+        - Given a word and a number of bits, determines if the word could 
+        store that number of bits
+        - Given a word, a width, and an index, returns a field from the 
+        codeword with the given length and the given word
+        - Given a word, width, least significant bit, and a value, returns a 
+        new word identical to the original, with the specified field replaced 
+        with the bit-width representation of value
+
+
+- floatrgb
+        - Convert a Pnm_ppm to a UArray2_T of Float_rgb structures or 
+                vice versa. Represents the RGB values as float stage.
+
+- component
+        - Convert a UArray2_T of Float_rgb structures to a Uarray2_T of
+                Component structures or vice versa. 
+        - Represents the Component Representation stage.
+
+- transcomp
+        - Convert a UArray2_T of Component structures to a Uarray2_T of
+                TransComp structures or vice versa. 
+        - Represents the Transformed Component Reprsentation as floats stage.
+
+- quantran
+        - Convert a UArray2_T of TransComp structures to a Uarray2_T of
+                QuantTran structures or vice versa. 
+        - Reprsents the Transformed Component Representaion as scaled integers
+                stage.
+        - Interacts with codeword to know what range to quantize the floats to.
+
+- codeword
+        - Convert a UArray2_T of QuatTran structures to a Uarray2_T of
+                Codewords or vice versa. 
+        - Represents the 32-bit codeword stage.
+        - Is able to write and read compressed images to disk.
+
+
+
+                        MODULE ARCHITECTURE
+
+
+
+compress40
+        PUBLIC (.h file)
+
+        void compress40(   FILE *input);
+                Reads a ppm from the given file stream and compresses it to 
+                Codewords that it prints to stdin. 
+                CRE if the given FILE * can not read into a properly formatted
+                Pnm_ppm. Calls all other modules to accomplish this.
+
+        void decompress40( FILE *input);
+                Reads a compressed image in from the given file stream, 
+                decompresses it then prints it to stdout.
+                CRE if the give FILE *can not be read into a properly formatted
+                compressed image. Calls all other modules to accomplish this.
+
+        PRIVATE (.c file)
+
+        void trim( Pnm_ppm *image);
+                Trims the given image's last row and last collumn if it has 
+                an odd number of rows or collumns. 
+
+bitpack
+        PUBLIC (.h file)
+
+        bool Bitpack_fitsu( uint64_t n, unsigned width);
+        bool Bitpack_fitss( int64_t n, unsigned width);
+        - Given a word and a number of bits, determines if the word could 
+        store that number of bits
+
+        uint64_t Bitpack_getu( uint64_t word, unsigned width, unsigned lsb);
+        int64_t Bitpack_gets( uint64_t word, unsigned width, unsigned lsb);
+        - Given a word, a width, and an index, returns a field from the 
+        codeword with the given length in the given word
+        - CRE if width + lsb > 64
+
+        uint64_t Bitpack_newu( uint64_t word, 
+                                unsigned width, 
+                                unsigned lsb, 
+                                uint64_t value);
+        uint64_t Bitpack_news( uint64_t word, 
+                                unsigned width, 
+                                unsigned lsb, 
+                                int64_t value);
+        - Given a word, width, least significant bit, and a value, returns a 
+        new word identical to the original, with the specified field replaced 
+        with the bit-width representation of value
+        - Raises Hanson exception if width + lsb > 64
+
+
+floatrgb
+        PUBLIC (.h file)
+
+        struct Float_rgb {
+                float r, g, b;
+        };
+                A structure to represent a single pixel using floats in an 
+                RGB format.
+        
+        UArray2_T Pnm_ppmToFloat_rgbs( Pnm_ppm image);
+                Given a Pnm_ppm formatted image, converts it to a 2D array
+                of Float_rgb structures.
+                CRE if the Pnm_ppm is not properly formatted.
+
+        Pnm_ppm   Float_rgbsToPnm_ppm( UArray2_T Float_rgbs);
+                Given a UArray2_T of Float_rgb structures, converts it a 
+                Pnm_ppm and returns it.
+                CRE if the 2D array is not properly formatted. 
+                
+
+        PRIVATE (.c file)
+        
+        const int denominator;
+                A constant representing the maximum value to be put into
+                the Pnm_ppm's rgb structure when constructing one from a 
+                2D array of Float_rgbs.
+        
+        void PnmToFloat( int x, 
+                         int y, 
+                         A2Methods_UArray2 pixels, 
+                         A2Methods_Object *pixel, 
+                         void *UArray2_rgb);
+                An apply function to be called on a Pnm_ppm and given a 
+                UArray2_T of Float_rgbs as a closure pointer. Converts the
+                pixels of the Pnm_ppm and inserts them into the 2D array of
+                Float_rgbs.
+
+        void FloatToPnm( int x, 
+                         int y, 
+                         UArray2_T Float_rgbs, 
+                         void *pixel, 
+                         void *New_Pnm);
+                An apply function to be called on a UArray2_T of Float_rgbs
+                and given a closure pointer to an unpopulated Pnm_ppm. 
+                Converts the Float_rgbs to Pnm_rgbs and inserts them into the 
+                Pnm_ppm.
+
+        Float_rgb convertPnm_rgb( Pnm_rgb pnm_rgb, int denom);
+                Given a Pnm_rgb and the denominator of its image, converts
+                its members to floats, inserts them into a constructed 
+                Float_rgb and returns the Float_rgb.
+
+        Pnm_rgb convertFloat_rgb( Float_rgb float_rgb, int denom);
+                Given a Float_rgb and the denominator of its destination image,
+                scales the floats of the rgb up to integers from zero to 
+                denominator, inserts them into a constructed Pnm_rgb 
+                and returns the Pnm_rgb. 
+
+
+component
+        PUBLIC (.h file)
+
+        struct Component {
+                float y, pb, pr;
+        };
+                A structure to represent a pixel in its component (Y, Pb, Pr)
+                form.
+
+        UArray2_T Float_rgbsToComponents( UArray2_T Float_rgbs);
+                Given a UArray2_T of Float_rgb pixels, converts each pixel's 
+                RGB values to an equivalent component form and stores those 
+                values into a Component struct. Returns a UArray2_T of 
+                Components.
+                CRE if 2D array is not properly formatted.
+
+        UArray2_T ComponentsToFloat_rgbs( UArray2_T Components);
+                Given a UArray2_T of Components, converts each pixel's 
+                component values into their RGB representation and stores 
+                those values in a Pnm_rgb struct. Returns a UArray2_T of 
+                Pnm_rgb's.
+                CRE if 2D array is not properly formatted.
+
+
+        PRIVATE (.c file)
+
+        void FloatToComponent( int x, 
+                               int y, 
+                               UArray2_T Float_rgbs, 
+                               void *pixel, 
+                               void *Components);
+                An apply function to be called on a UArray2_T of Float_rgbs 
+                given a closure pointer to a UArray2_T of Component structures.
+                Converts the Float_rgbs to Components and inserts them into the
+                Components array.
+
+        void ComponentToFloat( int x, 
+                               int y, 
+                               UArray2_T Components, 
+                               void *pixel, 
+                               void *Float_rgbs);
+                An apply function to be called on a UArray2_T of Components 
+                given a closure pointer to a UArray2_T of Float_rgb structures.
+                Converts the Components to Float_rgbs and inserts them into the
+                Float_rgbs array.
+
+        Float_rgb convertComponent( Component component);
+                Given a Component, converts its members to an RGB 
+                representation, inserts those new values into a Float_rgb, and 
+                returns the Float_rgb.
+        
+        Component convertFloat_rgb( Float_rgb float_rgb);
+                Given a Float_rgb, converts its members to a component 
+                representation, inserts those new values into a Component, and 
+                returns the Component.
+
+transcomp
+        PUBLIC (.h file)
+
+        struct TransComp {
+                float pb, pr, a, b, c, d;
+        };
+                A structure to represent a pixel component having undergone a 
+                discrete cosine transformation.
+
+        UArray2_T ComponentsToTransComps( UArray2_T Components);
+                Given a UArray2_T of Component pixels, converts each 2x2 box of
+                Components into a TransComp. Returns a UArray2_T of transformed
+                components (TransComps).
+                CRE if 2D array is not properly formatted.
+
+        UArray2_T TransCompsToComponents( UArray2_T TransComps);
+                Given a UArray2_T of TransComps, converts each TransComp's 
+                values into four Components. Inserts each Component into a 
+                UArray2_T and returns the array.
+                CRE if 2D array is not properly formatted.
+
+        PRIVATE (.c file)
+
+        void CompToTrans( int x, 
+                          int y, 
+                          UArray2_T Components, 
+                          void *pixel, 
+                          void *TransComps);
+                An apply function to be called on a UArray2_T of Components 
+                given a closure pointer to a UArray2_T of TransComp structures.
+                Converts the Component structures to TransComp structures and 
+                inserts them into the TransComps array.
+
+        void TransToComp( int x, 
+                          int y, 
+                          UArray2_T TransComps, 
+                          void *pixel, 
+                          void *Components);
+                An apply function to be called on a UArray2_T of TransComp's 
+                given a closure pointer to a UArray2_T of Component structures.
+                Converts the TransComp's to Components and inserts them into 
+                the Components array.
+
+        TransComp convertComponent( int x, int y, UArray2_T Components);
+                Given an array of Components and the top left corner of a 2x2 
+                box of component pixels, performs a discrete cosine transform 
+                on those four pixels to create a TransComp structure. Returns 
+                the TransComp structure.
+
+        void convertTransComp( int x,
+                               int y,
+                               UArray2_T TransComps,
+                               UArray2_T *Components);
+                Given an array of TransComps, performs an inverse discrete 
+                cosine transform on the TransComp at the given (x,y) coordinate
+                to generate four Components. Inserts those four Components into
+                the Components array.
+
+quanttran
+        PUBLIC (.h file)
+
+        struct QuantTran {
+                unsigned pb, pr, a;
+                int b, c, d;
+        };
+                A structure containing a quantized version of a transformed 
+                component.
+
+        UArray2_T TransCompsToQuantTrans( UArray2_T TransComps);
+                Given a UArray2_T of TransComp structures, converts each into a
+                QuantTran structure, inserts them into a UArray2_T, and returns
+                the array.
+                CRE if 2D array is not properly formatted.
+
+        UArray2_T QuantTransToTransComps( UArray2_T QuantTrans);
+                Given a UArray2_T of QuantTran structures, converts each into a
+                TransComp structure, inserts them into a UArray2_T, and returns
+                the array.
+                CRE if 2D array is not properly formatted.
+
+        PRIVATE (.c file)
+
+        void TransToQuant( int x, 
+                           int y, 
+                           UArray2_T TransComps, 
+                           void *transcomp, 
+                           void *QuantTrans);
+                An apply function to be called on a UArray2_T of TransComps 
+                given a closure pointer to a UArray2_T of QuantTran structures.
+                Converts the TransComp's to QuantTran's and inserts them into 
+                the QuantTrans array.
+
+        void QuantToTrans( int x, 
+                           int y, 
+                           UArray2_T QuantTrans, 
+                           void *quanttran, 
+                           void *TransComps);
+                An apply function to be called on a UArray2_T of QuantTran 
+                structures given a closure pointer to a UArray2_T of 
+                TransComps. Converts the QuantTrans structures to TransComp 
+                structures and inserts them into the QuantTrans array.
+
+        TransComp convertQuantTran( QuantTran quanttran);
+                Given a quanttran, unquantizes the members of the quanttran 
+                struct and inserts them into a TransComp structure. Returns 
+                the TransComp structure.
+
+        QuantTran convertTransComp( TransComp transcomp);
+                Given a TransComp, quantizes the members of the TransComp 
+                struct and inserts them into a QuantTran structure. Returns 
+                the QuantTran structure.
+
+codeword
+        PUBLIC (.h file)
+
+        Global constants to represent the widths of each element of the 
+        codeword:
+
+        extern const int width_a  = 9;
+        extern const int width_b  = 5;
+        extern const int width_c  = 5;
+        extern const int width_d  = 5;
+        extern const int width_pb = 4;
+        extern const int width_pr = 4;
+
+        UArray2_T QuantTransToCodewords( UArray2_T QuantTrans);
+                Given a UArray2_T of QuantTran structures, converts each into a
+                Codeword and inserts the Codewords into a UArray2_T. Returns 
+                the array of Codewords.
+                CRE if 2D array is not properly formatted.
+
+        UArray2_T CodewordsToQuantTrans( UArray2_T Codewords);
+                Given a UArray2_T of Codewords, converts each into a QuantTran 
+                structure and inserts them into a UArray2_T. Returns the array 
+                of QuantTran structures.
+                CRE if 2D array is not properly formatted.
+
+        void      writeCodewords( FILE *out, UArray2_T Codewords);
+                Writes the elements of a UArray2_T to a file.
+                CRE if 2D array is not properly formatted or if the file 
+                cannot be opened.
+
+        UArray2_T readCodewords(  FILE *in);
+                Reads the contents of a file into a UArray2_T.
+                CRE if line is not a properly formatted codeword or if the file
+                cannot be opened.
+
+        PRIVATE (.c file)
+
+        Private constants to represent the least significant bit of each 
+        element in a codeword:
+
+        const int lsb_a  = 23;
+        const int lsb_b  = 18;
+        const int lsb_c  = 13;
+        const int lsb_d  = 8;
+        const int lsb_pb = 4;
+        const int lsb_pr = 0;
+
+        typdef uint32_t Codeword;
+
+        void CodewordToQuant( int x, 
+                              int y, 
+                              UArray2_T Codewords, 
+                              void *codeword, 
+                              void *QuantTrans);
+                An apply function to be called on a UArray2_T of Codewords 
+                given a closure pointer to a UArray2_T of QuantTran structures.
+                Converts the Codewords to QuantTran's and inserts them into 
+                the QuantTrans array.
+
+        void QuantToCodeword( int x, 
+                              int y, 
+                              UArray2_T QuantTrans, 
+                              void *quanttran, 
+                              void *Codewords);
+                An apply function to be called on a UArray2_T of QuantTrans 
+                given a closure pointer to a UArray2_T of Codewords.
+                Converts the QuantTrans to Codewords and inserts them into 
+                the Codewords array.
+
+        void WriteCodes( int x, 
+                         int y, 
+                         UArray2_T Codewords, 
+                         void *codeword, 
+                         void *fp);
+                An apply function to be called on a UArray2_T of Codewords 
+                given a closure pointer to a file. Writes each codeword to the 
+                file.
+
+        void ReadCodes( int x, 
+                        int y, 
+                        UArray2_T Codewords, 
+                        void *codeword, 
+                        void *fp);
+                An apply function to be called on a UArray2_T of Codewords 
+                given a closure pointer to a file containing a compressed 
+                image. Reads a codeword from the file and inserts it into the 
+                array.
+
+        void assertCodewordFormat();
+                CRE if codeword is incorrect size or if any of the members
+                overlap.
+
+        void writeSingleCode( FILE *out, Codeword code);
+                Writes a single codeword to a given file.
+
+        Codeword readSingleCode( FILE *in);
+                Returns a single codeword read from a file.
+
+        Codeword convertQuantTrans( QuantTrans quanttran);
+                Given a QuantTran, inserts each element into a Codeword. 
+                Returns the Codeword.
+
+        QuantTran convertCodeword( unsigned codeword);
+                Given a Codeword, extracts each element and creates a QuantTran
+                struct. Returns the struct.
+
+
+TEST PLAN
+
+        We will create a test program where each function tests one module 
+        individually.
+
+        Cases:
+
+        compress40
+        -> unopenable file
+        -> file with incorrect input
+        -> no command given
+        -> incorrect image file type
+        -> image file with denominator less than any RGB value
+        -> compressed image file with incorrect heading
+        -> compressed image file with wrong number of bytes
+
+        bitpack
+        -> inputs that will result in out of bounds extractions
+        -> verify correct bit output for all values of width + height under 64
+
+        floatrgb
+        -> given Pnm_ppm with invalid denominator, height, width
+        -> given Pnm_ppm with unpopulated pixel array
+        -> given Pnm_ppm with bad methods
+        -> given Float_rgb with invalid RGB values (negatives)
+
+        component
+        -> Float_rgb with negative RGB values
+        -> uninitialized Float_rgb
+        -> empty UArray2_T
+        -> uninitialized Pnm_rbg
+
+        transcomp
+        -> TransComp with null values
+        -> Component with null or negative values
+        -> TransComp or Component with uninitialized values
+
+        quanttran
+        -> TransComp or Quanttran with null or uninitialized values
+        -> TransComp or Quanttran out of bounds values
+
+        codeword
+        -> Quanttran with null, out of bounds, or uninitialized values
+        -> Codeword with incorrect size
+        -> Codeword with incorrect element size
+        -> Codeword with bits where empty bits should be
+        -> incorrect image file type
+        -> image file with denominator less than any RGB value
+        -> compressed image file with incorrect heading
+        -> compressed image file with wrong number of bytes
+        -> incorrect image heading
+        -> spaces, newlines, or null chars within the bytes
+
+
+Questions:
+
+4. How will your design enable you to do well on the challenge problem in 
+Section 2.3 on page 13?
+
+Our code is very modular--each step of compression and decompression is divided
+into its own file--so any change in one piece of the compression/decompression 
+process should not affect the others. Additionally, the width of each element 
+of the codeowrd is globally defined, so any change in the relative size of the 
+elements will only require a change in a few of these variables.
+
+
+
+5. An image is compressed and then decompressed. Identify all the places where 
+information could be lost. Then it's compressed and decompressed again. Could 
+more information be lost? How?
+
+On the first round, there are three places:
+        - in the beginning, when trimming the last row and/or column to make 
+                the dimensions even
+        - when converting components from ints to floats
+        - when transforming, Pb and Pr are averaged
+        - when quantizing, the most extreme pixels are effectively dropped 
+                from the image. additionally, scaling from floats to ints loses
+                precision.
+        
+In the second round, all data that could be lossed from the original image was 
+already lossed in the first round. More information could only possibly be loss
+ed when converting between ints and floats. 
